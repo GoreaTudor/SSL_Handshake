@@ -3,24 +3,44 @@ from Crypto.PublicKey import RSA
 from Crypto.Cipher import PKCS1_OAEP
 
 
-message = b'this is my secret message'
-print('message:\n', message)
+class KE_RSA:
+    __exp_priv_key = None
+    __exp_pub_key = None
+
+    def __init__(self):
+        rsa = RSA.generate(1024)
+        self.__exp_priv_key = rsa.export_key('PEM')
+        self.__exp_pub_key = rsa.publickey().exportKey('PEM')
+    
+    
+    def encrypt(self, message, exp_pub_key):
+        pub_key = PKCS1_OAEP.new( RSA.importKey(exp_pub_key) )
+        ct = pub_key.encrypt(message)
+        return ct
+
+    def decrypt(self, ciphertext):
+        priv_key = PKCS1_OAEP.new( RSA.importKey(self.__exp_priv_key) )
+        pt = priv_key.decrypt(ciphertext)
+        return pt
+        
+    def getPublicKey(self):
+        return self.__exp_pub_key
+# end KE_RSA class
 
 
-rsa = RSA.generate(1024)
+def RSA_test():
+    message = b'this is my secret message'
+    print('message:', message)
+    
+    rsa = KE_RSA()
+    pub_key = rsa.getPublicKey()
+    
+    ct = rsa.encrypt(message, pub_key)
+    print('\nct:', ct)
+    
+    pt = rsa.decrypt(ct)
+    print('\npt:', pt)
+# end RSA_test()
 
-exp_priv_key = rsa.export_key('PEM'); print('\nexp priv key:\n', exp_priv_key)
-exp_pub_key = rsa.publickey().exportKey('PEM'); print('\nexp pub key:\n', exp_pub_key)
-
-
-pub_key = PKCS1_OAEP.new( RSA.importKey(exp_pub_key) )
-
-ct = pub_key.encrypt(message)
-print('\nct:\n', ct)
-
-
-priv_key = PKCS1_OAEP.new( RSA.importKey(exp_priv_key) )
-
-pt = priv_key.decrypt(ct)
-print('\npt:\n', pt)
+#RSA_test()
 

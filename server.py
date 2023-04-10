@@ -2,8 +2,11 @@ import socket
 import json
 import time
 
+import pub_RSA
+import sym_AES
 
-cipher_specs = ["RSA_AES"]
+
+cipher_specs = ["RSA_AES", "DH_AES"]
 
 
 def receive():
@@ -23,6 +26,16 @@ def send(message):
 # end send
 
 
+def RSA_keyExchange():
+    pass
+
+
+def DH_keyExchange():
+    pass
+
+
+ke_alg = None
+sym_alg = None
 def SSL_HandShake():
     while True:
         h1 = receive()
@@ -32,8 +45,11 @@ def SSL_HandShake():
             return
         
         chosen_suite = 'RSA_AES'
+        
         h2 = '{"id": "H2", "text": "server hello", "cipher_suite": "' + chosen_suite + '"}'
         send(h2)
+        
+        
 # end SSL_HandShake
 
 

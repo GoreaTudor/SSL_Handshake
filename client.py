@@ -2,8 +2,11 @@ import socket
 import json
 import time
 
+import pub_RSA
+import sym_AES
 
-cipher_specs = ["RSA_AES"]
+
+cipher_specs = ["DH_AES", "RSA_AES"]
 
 
 def send_receive(message):
@@ -17,17 +20,32 @@ def send_receive(message):
 # end send_receive
 
 
-# takes the data from the server as parameter and returns the next message to send
+def RSA_keyExchange():
+    pass
+
+
+def DH_keyExchange():
+    pass
+
+
+ke_alg = None
+sym_alg = None
 def SSL_HandShake():
     # Hello phase: cipher suites
-    h1 = '{"id": "H1", "text": "client hello", "cipher_suites": ["RSA_AES"]}'
-    h2 = send_receive(h1)
+    h_c = '{"id": "H_C", "text": "client hello", "cipher_suites": ["DH_AES", "RSA_AES"]}'
+    h_s = send_receive(h_c)
     
-    if h2["id"] != "H2":
-        print("Expected H2 header")
+    if h_s["id"] != "H_S":
+        print("Expected H_S header")
         return
     
     chosen_suite = h2["cipher_suite"]
+    if chosen_suite == "DH_AES":
+        ke_alg = DH_keyExchange()
+        sym_alg = "AES"
+    elif chosen_suite == "RSA_AES":
+        
+    ;
 # end SSL_HandShake
 
 
