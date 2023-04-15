@@ -49,4 +49,4 @@ def AES_test():
     print('\npt:', pt)
 # end AES_test()
 
-AES_test()
+#AES_test()

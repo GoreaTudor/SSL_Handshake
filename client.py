@@ -2,11 +2,14 @@ import socket
 import json
 import time
 
-import pub_RSA
+from Crypto.Random import get_random_bytes
+
+from pub_RSA import KE_RSA
 import sym_AES
 
 
 cipher_specs = ["DH_AES", "RSA_AES"]
+sym_alg = None
 
 
 def send_receive(message):
@@ -21,15 +24,24 @@ def send_receive(message):
 
 
 def RSA_keyExchange():
-    pass
+    # C -> S: Kc
+    rsa_c = KE_RSA()
+    rsa1_c = '{"id": "RSA1_C", "Kc": "' + str(rsa_c.getPublicKey()) + '"}'
+    
+    # S -> C: {Kcs} Ks
+    rsa1_s = send_receive(rsa1_c)
+    Kcs = rsa_c.decrypt(rsa1_s["Kcs"].encode("UTF-8"))  # get sym key
+    
+    print("received sym key:", Kcs)
+    return Kcs
+# end RSA_keyExchange()
 
 
 def DH_keyExchange():
     pass
 
 
-ke_alg = None
-sym_alg = None
+
 def SSL_HandShake():
     # Hello phase: cipher suites
     h_c = '{"id": "H_C", "text": "client hello", "cipher_suites": ["DH_AES", "RSA_AES"]}'
@@ -39,14 +51,17 @@ def SSL_HandShake():
         print("Expected H_S header")
         return
     
-    chosen_suite = h2["cipher_suite"]
+    chosen_suite = h_s["cipher_suite"]
     if chosen_suite == "DH_AES":
-        ke_alg = DH_keyExchange()
         sym_alg = "AES"
-    elif chosen_suite == "RSA_AES":
+        sym_key = DH_keyExchange()
         
-    ;
+    elif chosen_suite == "RSA_AES":
+        sym_alg = "AES"
+        sym_key = RSA_keyExchange()
+    
 # end SSL_HandShake
+
 
 
 # client script:
