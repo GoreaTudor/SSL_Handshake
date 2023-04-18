@@ -36,10 +36,12 @@ def RSA_keyExchange():
     # C -> S: Kc
     rsa1_c = receive()
     Kc = rsa1_c["Kc"].encode("UTF-8")
+    Kc = Kc[2:]
+    Kc = Kc[:-1]
     
     # S -> C: {Kcs} Ks
     Kcs = get_random_bytes(16)
-    rsa1_s = '{"id": "RSA1_S", "Kcs": "' + rsa_s.encrypt(Kcs, Kc) + '"}'
+    rsa1_s = '{"id": "RSA1_S", "Kcs": "' + str(rsa_s.encrypt(Kcs, Kc)) + '"}'
     
     print("sent sym key:", Kcs)
     return Kcs
