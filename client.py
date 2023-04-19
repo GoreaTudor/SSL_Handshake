@@ -5,10 +5,11 @@ import time
 from Crypto.Random import get_random_bytes
 
 from pub_RSA import KE_RSA
+from pub_ECC import KE_ECC
 import sym_AES
 
 
-cipher_specs = ["DH_AES", "RSA_AES"]
+cipher_specs = ["DH_AES", "RSA_AES", "ECC_AES"]
 sym_alg = None
 
 
@@ -37,6 +38,20 @@ def RSA_keyExchange():
 # end RSA_keyExchange()
 
 
+def ECC_keyExchange():
+    # C -> S: Kc
+    ecc_c = KE_ECC()
+    ecc1_c = '{"id": "ECC1_C", "Kc": "' + str(ecc_c.getPublicKey()) + '"}'
+    
+    # S -> C: {Kcs} Ks
+    rsa1_s = send_receive(ecc1_c)
+    Kcs = ecc_c.decrypt(ecc1_s["Kcs"].encode("UTF-8"))  # get sym key
+    
+    print("received sym key:", Kcs)
+    return Kcs
+# end ECC_keyExchange()
+
+
 def DH_keyExchange():
     pass
 
@@ -59,6 +74,10 @@ def SSL_HandShake():
     elif chosen_suite == "RSA_AES":
         sym_alg = "AES"
         sym_key = RSA_keyExchange()
+
+    elif chosen_suite == "ECC_AES":
+        sym_alg = "AES"
+        sym_key = ECC_keyExchange()
     
 # end SSL_HandShake
 

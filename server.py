@@ -5,10 +5,11 @@ import time
 from Crypto.Random import get_random_bytes
 
 from pub_RSA import KE_RSA
+from pub_ECC import KE_ECC
 import sym_AES
 
 
-cipher_specs = ["RSA_AES", "DH_AES"]
+cipher_specs = ["RSA_AES", "DH_AES", "ECC_AES"]
 sym_alg = None
 
 
@@ -47,6 +48,23 @@ def RSA_keyExchange():
     return Kcs
 # end RSA_key_Exchange()
 
+def ECC_keyExchange():
+    ecc_s = KE_ECC()
+    
+    # C -> S: Kc
+    ecc1_c = receive()
+    Kc = ecc1_c["Kc"].encode("UTF-8")
+    Kc = Kc[2:]
+    Kc = Kc[:-1]
+    
+    # S -> C: {Kcs} Ks
+    Kcs = get_random_bytes(16)
+    ecc1_s = '{"id": "ECC1_S", "Kcs": "' + str(ecc_s.encrypt(Kcs, Kc)) + '"}'
+    
+    print("sent sym key:", Kcs)
+    return Kcs
+# end ECC_key_Exchange()
+
 def DH_keyExchange():
     pass
 
@@ -61,7 +79,7 @@ def SSL_HandShake():
             print("Expected H_C header")
             return
         
-        chosen_suite = "RSA_AES"  # alg for choosing suite req
+        chosen_suite = "ECC_AES"  # alg for choosing suite req
         
         h2 = '{"id": "H_S", "text": "server hello", "cipher_suite": "' + chosen_suite + '"}'
         send(h2)
@@ -73,6 +91,10 @@ def SSL_HandShake():
         elif chosen_suite == "RSA_AES":
             sym_alg = "AES"
             sym_key = RSA_keyExchange()
+
+        elif chosen_suite == "ECC_AES":
+            sym_alg = "AES"
+            sym_key = ECC_keyExchange()
         
 # end SSL_HandShake
 
