@@ -10,8 +10,8 @@ class KE_ECC:
 
     def __init__(self):
         ecc = generate_key()
-        self.__exp_priv_key = ecc.public_key.format(True)
-        self.__exp_pub_key = ecc.secret
+        self.__exp_priv_key = ecc.secret
+        self.__exp_pub_key = ecc.public_key.format(True)
     
     
     def encrypt(self, message, exp_pub_key):
