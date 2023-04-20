@@ -11,6 +11,8 @@ class KE_RSA:
         rsa = RSA.generate(1024)
         self.__exp_priv_key = rsa.export_key('PEM')
         self.__exp_pub_key = rsa.publickey().exportKey('PEM')
+        #print("\npriv_key:", self.__exp_priv_key)
+        #print("\npub_key:", self.__exp_pub_key)
     
     
     def encrypt(self, message, exp_pub_key):

@@ -1,6 +1,7 @@
 import socket
 import json
 import time
+import base64
 
 from Crypto.Random import get_random_bytes
 
@@ -9,7 +10,7 @@ from pub_ECC import KE_ECC
 import sym_AES
 
 
-cipher_specs = ["RSA_AES", "DH_AES", "ECC_AES"]
+cipher_specs = ["ECC_AES", "RSA_AES"]
 sym_alg = None
 
 
@@ -30,44 +31,58 @@ def send(message):
 # end send
 
 
+def encode64(byte_string):
+    return base64.b64encode( byte_string ).decode("UTF-8")
+# end encode64()
+
+def decode64(string):
+    return base64.b64decode( string.encode("UTF-8") )
+# end decode64()
+
+
+###################################################################################################
+
 
 def RSA_keyExchange():
+    print("\nRSA Key Exchange:")
+    
     rsa_s = KE_RSA()
     
     # C -> S: Kc
     rsa1_c = receive()
-    Kc = rsa1_c["Kc"].encode("UTF-8")
-    Kc = Kc[2:]
-    Kc = Kc[:-1]
+    Kc = decode64(rsa1_c["Kc"])
     
     # S -> C: {Kcs} Ks
     Kcs = get_random_bytes(16)
-    rsa1_s = '{"id": "RSA1_S", "Kcs": "' + str(rsa_s.encrypt(Kcs, Kc)) + '"}'
+    rsa1_s = '{"id": "RSA1_S", "Kcs": "' + encode64( rsa_s.encrypt(Kcs, Kc) ) + '"}'
+    send(rsa1_s)
     
-    print("sent sym key:", Kcs)
+    print("\nsent sym key:", Kcs)
     return Kcs
 # end RSA_key_Exchange()
 
+
+
 def ECC_keyExchange():
+    print("\nECC Key Exchange:")
+    
     ecc_s = KE_ECC()
     
     # C -> S: Kc
     ecc1_c = receive()
-    Kc = ecc1_c["Kc"].encode("UTF-8")
-    Kc = Kc[2:]
-    Kc = Kc[:-1]
+    Kc = decode64(ecc1_c["Kc"])
     
     # S -> C: {Kcs} Ks
     Kcs = get_random_bytes(16)
-    ecc1_s = '{"id": "ECC1_S", "Kcs": "' + str(ecc_s.encrypt(Kcs, Kc)) + '"}'
+    ecc1_s = '{"id": "ECC1_S", "Kcs": "' + encode64( ecc_s.encrypt(Kcs, Kc) ) + '"}'
+    send(ecc1_s)
     
-    print("sent sym key:", Kcs)
+    print("\nsent sym key:", Kcs)
     return Kcs
 # end ECC_key_Exchange()
 
-def DH_keyExchange():
-    pass
 
+###################################################################################################
 
 
 sym_alg = None
@@ -79,16 +94,12 @@ def SSL_HandShake():
             print("Expected H_C header")
             return
         
-        chosen_suite = "ECC_AES"  # alg for choosing suite req
+        chosen_suite = "RSA_AES"  # alg for choosing suite req
         
         h2 = '{"id": "H_S", "text": "server hello", "cipher_suite": "' + chosen_suite + '"}'
         send(h2)
         
-        if chosen_suite == "DH_AES":
-            sym_alg = "AES"
-            sym_key = DH_keyExchange()
-        
-        elif chosen_suite == "RSA_AES":
+        if chosen_suite == "RSA_AES":
             sym_alg = "AES"
             sym_key = RSA_keyExchange()
 
