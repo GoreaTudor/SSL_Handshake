@@ -49,7 +49,6 @@ def RSA_keyExchange():
     rsa1_s = send_receive(rsa1_c)
     Kcs = rsa_c.decrypt( decode64(rsa1_s["Kcs"]) )  # get sym key
     
-    print("\nreceived sym key:", Kcs)
     return Kcs
 # end RSA_keyExchange()
 
@@ -67,7 +66,6 @@ def ECC_keyExchange():
     ecc1_s = send_receive(ecc1_c)
     Kcs = ecc_c.decrypt( decode64(ecc1_s["Kcs"]) )  # get sym key
     
-    print("\nreceived sym key:", Kcs)
     return Kcs
 # end ECC_keyExchange()
 
@@ -77,22 +75,20 @@ def ECC_keyExchange():
 
 def SSL_HandShake():
     # Hello phase: cipher suites
-    h_c = '{"id": "H_C", "text": "client hello", "cipher_suites": ["ECC_AES", "RSA_AES"]}'
+    h_c = '{"id": "H_C", "text": "client hello", "KE": ["ECC", "RSA"], "SYM": ["AES", "Blowfish"]}'
     h_s = send_receive(h_c)
     
-    if h_s["id"] != "H_S":
-        print("Expected H_S header")
-        return
+    chosen_KE = h_s["KE"]
+    chosen_SYM = h_s["SYM"]
     
-    chosen_suite = h_s["cipher_suite"]
-    if chosen_suite == "RSA_AES":
-        sym_alg = "AES"
+    sym_key = None
+    if chosen_KE == "RSA":
         sym_key = RSA_keyExchange()
-
-    elif chosen_suite == "ECC_AES":
-        sym_alg = "AES"
+    
+    elif chosen_KE == "ECC":
         sym_key = ECC_keyExchange()
     
+    print("\nreceived sym key:", sym_key)
 # end SSL_HandShake
 
 
@@ -105,7 +101,8 @@ client_socket = socket.socket()  # create new socket
 client_socket.connect((host, port))  # connect to the server
 print("Connected to server")
 
-SSL_HandShake()
-
-client_socket.close()  # close the connection
+try:
+    SSL_HandShake()
+finally:
+    client_socket.close()  # close the connection
 
