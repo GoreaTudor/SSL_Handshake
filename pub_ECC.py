@@ -21,7 +21,7 @@ class KE_ECC:
 
     def decrypt(self, ciphertext):
         # the key must be in bytes
-        pt = decrypt(elf.__exp_priv_key, ciphertext)
+        pt = decrypt(self.__exp_priv_key, ciphertext)
         return pt
         
     def getPublicKey(self):
