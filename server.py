@@ -1,125 +1,160 @@
 import socket
 import json
-import time
 import base64
-
 from Crypto.Random import get_random_bytes
-
 from pub_RSA import KE_RSA
 from pub_ECC import KE_ECC
 import sym_AES
 
+class SSLServer:
+    def __init__(self, host, port):
+        self.host = host
+        self.port = port
+        self.server_socket = socket.socket()
 
-cipher_specs = ["ECC_AES", "RSA_AES"]
-sym_alg = None
+    def receive(self):
+        """
+        Receives data from the client and returns the received message.
 
+        :return: The received message
+        :rtype: dict
+        """
+        data = self.conn.recv(2048).decode()
 
-def receive():
-    data = conn.recv(2048).decode()
-    print("\nReceived:", str(data))
-    
-    if not data:
-        conn.close()
-        quit()
-    
-    return json.loads(data)
-# end receive
+        if not data:
+            self.conn.close()
+            quit()
 
-def send(message):
-    conn.send(message.encode())
-    print("Sent:", str(message))
-# end send
+        print("\nReceived:", str(data))
 
-
-def encode64(byte_string):
-    return base64.b64encode( byte_string ).decode("UTF-8")
-# end encode64()
-
-def decode64(string):
-    return base64.b64decode( string.encode("UTF-8") )
-# end decode64()
+        return json.loads(data)
 
 
-###################################################################################################
+    def send(self, message):
+        """
+        Sends a message to the client.
 
+        :param message: The message to send
+        :type message: str
+        """
+        self.conn.send(message.encode())
+        print("Sent:", str(message))
 
-def RSA_keyExchange():
-    print("\nRSA Key Exchange:")
-    
-    rsa_s = KE_RSA()
-    
-    # C -> S: Kc
-    rsa1_c = receive()
-    Kc = decode64(rsa1_c["Kc"])
-    
-    # S -> C: {Kcs} Ks
-    Kcs = get_random_bytes(16)
-    rsa1_s = '{"id": "RSA1_S", "Kcs": "' + encode64( rsa_s.encrypt(Kcs, Kc) ) + '"}'
-    send(rsa1_s)
-    
-    return Kcs
-# end RSA_key_Exchange()
+    @staticmethod
+    def encode64(byte_string):
+        """
+        Encodes a byte string to a base64 string.
 
+        :param byte_string: The byte string to encode
+        :type byte_string: bytes
+        :return: The base64 encoded string
+        :rtype: str
+        """
+        return base64.b64encode(byte_string).decode("UTF-8")
 
+    @staticmethod
+    def decode64(string):
+        """
+        Decodes a base64 string to a byte string.
 
-def ECC_keyExchange():
-    print("\nECC Key Exchange:")
-    
-    ecc_s = KE_ECC()
-    
-    # C -> S: Kc
-    ecc1_c = receive()
-    Kc = decode64(ecc1_c["Kc"])
-    
-    # S -> C: {Kcs} Ks
-    Kcs = get_random_bytes(16)
-    ecc1_s = '{"id": "ECC1_S", "Kcs": "' + encode64( ecc_s.encrypt(Kcs, Kc) ) + '"}'
-    send(ecc1_s)
-    
-    return Kcs
-# end ECC_key_Exchange()
+        :param string: The base64 string to decode
+        :type string: str
+        :return: The decoded byte string
+        :rtype: bytes
+        """
+        return base64.b64decode(string.encode("UTF-8"))
 
+    def rsa_key_exchange(self):
+        """
+        Performs RSA key exchange with the client.
 
-###################################################################################################
+        :return: The symmetric key
+        :rtype: bytes
+        """
+        print("\nRSA Key Exchange:")
 
+        rsa_s = KE_RSA()
 
-sym_alg = None
-def SSL_HandShake():
-    while True:
-        h1 = receive()
-        
-        chosen_KE = "ECC"
-        chosen_SYM = "AES"
-        
-        h2 = '{"id": "H_S", "text": "server hello", "KE": "' + chosen_KE + '", "SYM": "' + chosen_SYM + '"}'
-        send(h2)
-        
-        sym_key = None
-        if chosen_KE == "RSA":
-            sym_key = RSA_keyExchange()
-        
-        elif chosen_KE == "ECC":
-            sym_key = ECC_keyExchange()
-        
-        print("\nsent sym key:", sym_key)
-# end SSL_HandShake
+        rsa1_c = self.receive()
+        Kc = self.decode64(rsa1_c["Kc"])
 
+        Kcs = get_random_bytes(16)
+        rsa1_s = {"id": "RSA1_S", "Kcs": self.encode64(rsa_s.encrypt(Kcs, Kc))}
+        self.send(json.dumps(rsa1_s))
 
+        return Kcs
 
-# server script:
-host = socket.gethostname()  # both apps running on same pc
-port = 5000
-server_socket = socket.socket()  # create new socket
-server_socket.bind((host, port))  # binds host address and port together
+    def ecc_key_exchange(self):
+        """
+        Performs ECC key exchange with the client.
 
-server_socket.listen(1)  # config how many clients the server can listen to
-print("Server started")
+        :return: The symmetric key
+        :rtype: bytes
+        """
+        print("\nECC Key Exchange:")
 
-conn, adr = server_socket.accept()  # accept new connection to client
-print("Connection accepted, address is:", str(adr))
+        ecc_s = KE_ECC()
 
-try:
-    SSL_HandShake()
-finally:
-    conn.close()
+        ecc1_c = self.receive()
+        Kc = self.decode64(ecc1_c["Kc"])
 
+        Kcs = get_random_bytes(16)
+        ecc1_s = {"id": "ECC1_S", "Kcs": self.encode64(ecc_s.encrypt(Kcs, Kc))}
+        self.send(json.dumps(ecc1_s))
+
+        return Kcs
+
+    def ssl_handshake(self):
+        """
+        Performs SSL handshake with the client.
+        """
+        while True:
+            h1 = self.receive()
+
+            chosen_ke = "ECC"
+            chosen_sym = "AES"
+
+            h2 = {
+                "id": "H_S", 
+                "text": "server hello", 
+                "KE": chosen_ke, 
+                "SYM": chosen_sym
+            }
+
+            self.send(json.dumps(h2))
+
+            if chosen_ke == "RSA":
+                sym_key = self.rsa_key_exchange()
+            elif chosen_ke == "ECC":
+                sym_key = self.ecc_key_exchange()
+
+            print("\nSent symmetric key:", sym_key)
+
+    def run(self):
+        self.server_socket.bind((self.host, self.port))
+        self.server_socket.listen(1)
+
+        print("Server started")
+
+        self.conn, adr = self.server_socket.accept()
+
+        print("Connection accepted, address is:", str(adr))
+
+        try:
+            self.ssl_handshake()
+        finally:
+            self.conn.close()
+
+def read_config():
+    with open("config.json", "r") as file:
+        config = json.load(file)
+    return config
+
+if __name__ == "__main__":
+    config = read_config()
+    host = socket.gethostname()
+    print(host)
+    port = config["port"]
+    print(port)
+    ssl_server = SSLServer(host, port)
+    ssl_server.run()
