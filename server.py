@@ -7,9 +7,10 @@ from pub_ECC import KE_ECC
 import sym_AES
 
 class SSLServer:
-    def __init__(self, host, port):
+    def __init__(self, host, port, update_output_callback=None):
         self.host = host
         self.port = port
+        self.update_output_callback = update_output_callback
         self.server_socket = socket.socket()
 
     def receive(self):
@@ -26,6 +27,9 @@ class SSLServer:
             quit()
 
         print("\nReceived:", str(data))
+
+        if self.update_output_callback:
+            self.update_output_callback(f"\nReceived: {str(data)}")
 
         return json.loads(data)
 
@@ -129,6 +133,9 @@ class SSLServer:
                 sym_key = self.ecc_key_exchange()
 
             print("\nSent symmetric key:", sym_key)
+            
+            if self.update_output_callback:
+                self.update_output_callback(f"\nSent symmetric key: {sym_key}")
 
     def run(self):
         self.server_socket.bind((self.host, self.port))
@@ -139,6 +146,10 @@ class SSLServer:
         self.conn, adr = self.server_socket.accept()
 
         print("Connection accepted, address is:", str(adr))
+
+        if self.update_output_callback:
+            self.update_output_callback("Server started")
+            self.update_output_callback(f"Connection accepted, address is: {str(adr)}")
 
         try:
             self.ssl_handshake()

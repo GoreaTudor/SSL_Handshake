@@ -86,20 +86,24 @@ class SSLApp(tk.Tk):
     def run_server(self):
         config = read_config()
         host = socket.gethostname()
-        print(host)
         port = config["port"]
-        print(port)
-        ssl_server = SSLServer(host, port)
+        ssl_server = SSLServer(host, port, self.update_server_output)
         ssl_server.run()
 
     def run_client(self):
         config = read_config()
         host = socket.gethostname()
-        print(host)
         port = config["port"]
-        print(port)
-        ssl_client = SSLClient(host, port)
+        ssl_client = SSLClient(host, port, self.update_client_output)
         ssl_client.run()
+
+    def update_server_output(self, text):
+        self.server_output_text.insert(tk.END, text + "\n")
+        self.server_output_text.see(tk.END)
+
+    def update_client_output(self, text):
+        self.client_output_text.insert(tk.END, text + "\n")
+        self.client_output_text.see(tk.END)
 
     def save_port(self):
         try:
