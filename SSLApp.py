@@ -88,6 +88,7 @@ class SSLApp(tk.Tk):
         host = socket.gethostname()
         port = config["port"]
         ssl_server = SSLServer(host, port, self.update_server_output)
+        ssl_server.set_preffered_algs(str(config["pref_KE"]), str(config["pref_SYM"]))
         ssl_server.run()
 
     def run_client(self):

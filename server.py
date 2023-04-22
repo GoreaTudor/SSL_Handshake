@@ -11,11 +11,18 @@ from sym_CAST import T_CAST
 from sym_Salsa20 import T_Salsa20
 
 class SSLServer:
+    __pref_KE = None
+    __pref_SYM = None
+
     def __init__(self, host, port, update_output_callback=None):
         self.host = host
         self.port = port
         self.update_output_callback = update_output_callback
         self.server_socket = socket.socket()
+    
+    def set_preffered_algs(self, ke, sym):
+        self.__pref_KE = ke
+        self.__pref_SYM = sym
 
     def receive(self):
         """
@@ -122,8 +129,8 @@ class SSLServer:
         while True:
             h1 = self.receive()
 
-            chosen_ke = "ECC"
-            chosen_sym = "Blowfish"
+            chosen_ke = self.__pref_KE
+            chosen_sym = self.__pref_SYM
 
             h2 = {
                 "id": "H_S", 
@@ -225,9 +232,13 @@ def read_config():
 
 if __name__ == "__main__":
     config = read_config()
+    
     host = socket.gethostname()
     print(host)
+    
     port = config["port"]
     print(port)
+    
     ssl_server = SSLServer(host, port)
+    ssl_server.set_preffered_algs(str(config["pref_KE"]), str(config["pref_SYM"]))
     ssl_server.run()
