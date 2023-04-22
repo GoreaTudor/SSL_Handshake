@@ -4,7 +4,11 @@ import base64
 from Crypto.Random import get_random_bytes
 from pub_RSA import KE_RSA
 from pub_ECC import KE_ECC
-import sym_AES
+from sym_AES import T_AES
+from sym_Blowfish import T_Blowfish
+from sym_ARC2 import T_ARC2
+from sym_CAST import T_CAST
+from sym_Salsa20 import T_Salsa20
 
 class SSLServer:
     def __init__(self, host, port, update_output_callback=None):
@@ -43,6 +47,9 @@ class SSLServer:
         """
         self.conn.send(message.encode())
         print("Sent:", str(message))
+        
+        if self.update_output_callback:
+            self.update_output_callback(f"Sent: {str(message)}")
 
     @staticmethod
     def encode64(byte_string):
@@ -75,7 +82,7 @@ class SSLServer:
         :return: The symmetric key
         :rtype: bytes
         """
-        print("\nRSA Key Exchange:")
+        print("\n\nRSA Key Exchange:")
 
         rsa_s = KE_RSA()
 
@@ -95,7 +102,7 @@ class SSLServer:
         :return: The symmetric key
         :rtype: bytes
         """
-        print("\nECC Key Exchange:")
+        print("\n\nECC Key Exchange:")
 
         ecc_s = KE_ECC()
 
@@ -116,7 +123,7 @@ class SSLServer:
             h1 = self.receive()
 
             chosen_ke = "ECC"
-            chosen_sym = "AES"
+            chosen_sym = "Blowfish"
 
             h2 = {
                 "id": "H_S", 
@@ -127,15 +134,70 @@ class SSLServer:
 
             self.send(json.dumps(h2))
 
+            sym_key = None
             if chosen_ke == "RSA":
                 sym_key = self.rsa_key_exchange()
             elif chosen_ke == "ECC":
                 sym_key = self.ecc_key_exchange()
+            else:
+                print("\n\nINVALID KE ALG")
+                if self.update_output_callback:
+                    self.update_output_callback("\n\nINVALID KE ALG")
+                return
 
             print("\nSent symmetric key:", sym_key)
             
             if self.update_output_callback:
                 self.update_output_callback(f"\nSent symmetric key: {sym_key}")
+            
+            sym_alg = None
+            if chosen_sym == "AES":
+                sym_alg = T_AES()
+            elif chosen_sym == "ARC2":
+                sym_alg = T_ARC2()
+            elif chosen_sym == "Blowfish":
+                sym_alg = T_Blowfish()
+            elif chosen_sym == "CAST":
+                sym_alg = T_CAST()
+            elif chosen_sym == "Salsa20":
+                sym_alg = T_Salsa20()
+            else:
+                print("\n\nINVALID SYM ALG")
+                if self.update_output_callback:
+                    self.update_output_callback("\n\nINVALID SYM ALG")
+                return
+            
+            print("\n\nTransfer messages:")
+        
+            if self.update_output_callback:
+                self.update_output_callback("\n\nTransfer messages:")
+            
+            while True:
+                msg_c = self.receive()
+                if msg_c["id"] == "BYE_C":
+                    response = "RST ACK"
+                    msg_s = {"id": "BYE_S", "r": str(response)}
+                    self.send(json.dumps(msg_s))
+                    break
+                
+                else:
+                    message = sym_alg.decrypt( self.decode64(msg_c["m"]), sym_key ).decode("UTF-8")
+                    
+                    print("MESSAGE: " + str(message) + "\n")
+                    if self.update_output_callback:
+                        self.update_output_callback("MESSAGE: " + str(message) + "\n")
+                    
+                    response = str(message) + " is an open world game."
+                    
+                    print("RESPONSE: " + str(response))
+                    if self.update_output_callback:
+                        self.update_output_callback("RESPONSE: " + str(response))
+                    
+                    msg_s = {
+                        "id": "M_S", 
+                        "r": self.encode64( sym_alg.encrypt(response.encode("UTF-8"), sym_key) )
+                    }
+                    self.send(json.dumps(msg_s))
 
     def run(self):
         self.server_socket.bind((self.host, self.port))

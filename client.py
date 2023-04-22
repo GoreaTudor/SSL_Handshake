@@ -4,7 +4,11 @@ import base64
 from Crypto.Random import get_random_bytes
 from pub_RSA import KE_RSA
 from pub_ECC import KE_ECC
-import sym_AES
+from sym_AES import T_AES
+from sym_Blowfish import T_Blowfish
+from sym_ARC2 import T_ARC2
+from sym_CAST import T_CAST
+from sym_Salsa20 import T_Salsa20
 
 class SSLClient:
     def __init__(self, host, port, update_output_callback=None):
@@ -23,16 +27,16 @@ class SSLClient:
         :rtype: dict
         """
         self.client_socket.send(message.encode())
-        print("\nSent:", str(message))
+        print("Sent:", str(message))
 
         if self.update_output_callback:
-            self.update_output_callback(f"\nSent: {str(message)}")
+            self.update_output_callback(f"Sent: {str(message)}")
 
         data = self.client_socket.recv(2048).decode()
-        print("Received:", str(data))
+        print("\nReceived:", str(data))
 
         if self.update_output_callback:
-            self.update_output_callback(f"\nReceived: {str(message)}")
+            self.update_output_callback(f"\nReceived: {str(data)}")
 
         return json.loads(data)
 
@@ -67,7 +71,7 @@ class SSLClient:
         :return: The symmetric key
         :rtype: bytes
         """
-        print("\nRSA Key Exchange:")
+        print("\n\nRSA Key Exchange:\n")
 
         rsa_c = KE_RSA()
         Kc = rsa_c.getPublicKey()
@@ -85,7 +89,7 @@ class SSLClient:
         :return: The symmetric key
         :rtype: bytes
         """
-        print("\nECC Key Exchange:")
+        print("\n\nECC Key Exchange:\n")
 
         ecc_c = KE_ECC()
         Kc = ecc_c.getPublicKey()
@@ -109,33 +113,83 @@ class SSLClient:
             ], 
             "SYM": [
                 "AES", 
-                "Blowfish"
+                "ARC2",
+                "Blowfish",
+                "CAST",
+                "Salsa20"
             ]
         }
 
         h_s = self.send_receive(json.dumps(h_c))
 
         chosen_ke = h_s["KE"]
-        chosen_sym = h_s["SYM"]
-
+        sym_key = None
         if chosen_ke == "RSA":
             sym_key = self.rsa_key_exchange()
         elif chosen_ke == "ECC":
             sym_key = self.ecc_key_exchange()
+        else:
+            print("\n\nINVALID KE ALG")
+            if self.update_output_callback:
+                self.update_output_callback("\n\nINVALID KE ALG")
+            return
 
         print("\nReceived symmetric key:", sym_key)
-        
         if self.update_output_callback:
-            self.update_output_callback(f"Received symmetric key: {sym_key}")
-
+            self.update_output_callback(f"\nReceived symmetric key: {sym_key}")
+        
+        chosen_sym = h_s["SYM"]
+        sym_alg = None
+        if chosen_sym == "AES":
+            sym_alg = T_AES()
+        elif chosen_sym == "ARC2":
+            sym_alg = T_ARC2()
+        elif chosen_sym == "Blowfish":
+            sym_alg = T_Blowfish()
+        elif chosen_sym == "CAST":
+            sym_alg = T_CAST()
+        elif chosen_sym == "Salsa20":
+            sym_alg = T_Salsa20()
+        else:
+            print("\n\nINVALID SYM ALG")
+            if self.update_output_callback:
+                self.update_output_callback("\n\nINVALID SYM ALG")
+            return
+        
+        print("\n\nTransfer messages:\n")
+        if self.update_output_callback:
+            self.update_output_callback("\n\nTransfer messages:")
+        
+        # send some test messages
+        messages = ["Skyrim", "Fallout 3", "Dying Light", "GTA V", "Dying Light The Following"]
+        
+        for m in messages:
+            print("MESSAGE: " + m)
+            if self.update_output_callback:
+                self.update_output_callback("MESSAGE: " + str(m))
+            
+            msg_c = {
+                "id": "M_C", 
+                "m": self.encode64( sym_alg.encrypt(m.encode("UTF-8"), sym_key) )
+            }
+            msg_s = self.send_receive(json.dumps(msg_c))
+            response = sym_alg.decrypt( self.decode64(msg_s["r"]), sym_key ).decode("UTF-8")
+            
+            print("RESPONSE: " + str(response) + "\n")
+            if self.update_output_callback:
+                self.update_output_callback("RESPONSE: " + str(response) + "\n")
+            
+        
+        bye_c = {"id": "BYE_C", "m": "RST"}
+        bye_s = self.send_receive(json.dumps(bye_c))
+    
     def run(self):
         self.client_socket.connect((self.host, self.port))
-
+        
         print("Connected to server")
-
         if self.update_output_callback:
             self.update_output_callback("Connected to server")
-
+        
         try:
             self.ssl_handshake()
         finally:
