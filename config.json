@@ -1,5 +1,1 @@
-{
-    "port": 5001,
-    "pref_KE": "ECC",
-    "pref_SYM": "Blowfish"
-}
+{"port": 5003, "pref_KE": "ECC", "pref_SYM": "Blowfish"}

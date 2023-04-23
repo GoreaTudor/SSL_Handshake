@@ -22,7 +22,24 @@ class SSLApp(tk.Tk):
         self.create_client_frame()
         self.create_output_frames()
         self.create_port_frame()
+        self.create_clear_output_buttons()
         self.create_settings_output_frame()
+
+    def create_clear_output_buttons(self):
+        frame = ttk.Frame(self)
+        frame.grid(column=0, row=3, columnspan=2, padx=10, pady=10, sticky="W")
+        
+        self.clear_server_output_button = ttk.Button(frame, text="Clear Server Output", command=self.clear_server_output)
+        self.clear_server_output_button.grid(column=0, row=0)
+        
+        self.clear_client_output_button = ttk.Button(frame, text="Clear Client Output", command=self.clear_client_output)
+        self.clear_client_output_button.grid(column=1, row=0)
+
+    def clear_server_output(self):
+        self.server_output_text.delete(1.0, tk.END)
+    
+    def clear_client_output(self):
+        self.client_output_text.delete(1.0, tk.END)
 
     def create_settings_output_frame(self):
         frame = ttk.LabelFrame(self, text="Settings Output")
@@ -83,13 +100,18 @@ class SSLApp(tk.Tk):
         client_thread = threading.Thread(target=self.run_client, daemon=True)
         client_thread.start()
 
-    def run_server(self):
+    def run_server_thread(self):
         config = read_config()
         host = socket.gethostname()
         port = config["port"]
         ssl_server = SSLServer(host, port, self.update_server_output)
         ssl_server.set_preffered_algs(str(config["pref_KE"]), str(config["pref_SYM"]))
         ssl_server.run()
+
+    def run_server(self):
+        self.update_server_output("Starting server...")
+        server_thread = threading.Thread(target=self.run_server_thread, daemon=True)
+        server_thread.start()
 
     def run_client(self):
         config = read_config()
@@ -109,10 +131,17 @@ class SSLApp(tk.Tk):
     def save_port(self):
         try:
             new_port = int(self.port_entry.get())
-            self.config["port"] = new_port
 
+            # Load the current configuration
+            with open("config.json", "r") as file:
+                config = json.load(file)
+
+            # Update the port value
+            config["port"] = new_port
+
+            # Save the updated configuration
             with open("config.json", "w") as file:
-                json.dump(self.config, file)
+                json.dump(config, file)
 
             self.settings_output_text.insert(tk.END, f"Port number updated to: {new_port}\n")
         except ValueError:
