@@ -24,6 +24,45 @@ class SSLApp(tk.Tk):
         self.create_port_frame()
         self.create_clear_output_buttons()
         self.create_settings_output_frame()
+        self.create_alg_frame()
+
+    def create_alg_frame(self):
+        frame = ttk.LabelFrame(self, text="Algorithms")
+        frame.grid(column=0, row=5, columnspan=2, padx=10, pady=10, sticky="W")
+
+        ttk.Label(frame, text="Key Exchange:").grid(column=0, row=0, sticky="W")
+        self.ke_var = tk.StringVar()
+        self.ke_var.set(self.config["pref_KE"])
+        self.ke_dropdown = ttk.OptionMenu(frame, self.ke_var, self.config["pref_KE"], "RSA", "ECC")
+        self.ke_dropdown.grid(column=1, row=0, padx=5, sticky="W")
+
+        ttk.Label(frame, text="Symmetric:").grid(column=2, row=0, sticky="W")
+        self.sym_var = tk.StringVar()
+        self.sym_var.set(self.config["pref_SYM"])
+        self.sym_dropdown = ttk.OptionMenu(frame, self.sym_var, self.config["pref_SYM"], "AES", "ARC2", "Blowfish", "CAST", "Salsa20")
+        self.sym_dropdown.grid(column=3, row=0, padx=5, sticky="W")
+
+        self.save_alg_button = ttk.Button(frame, text="Save Algorithms", command=self.save_algorithms)
+        self.save_alg_button.grid(column=4, row=0, padx=5, sticky="W")
+
+    def save_algorithms(self):
+        new_ke = self.ke_var.get()
+        new_sym = self.sym_var.get()
+
+        # Load the current configuration
+        with open("config.json", "r") as file:
+            config = json.load(file)
+
+        # Update the algorithm values
+        config["pref_KE"] = new_ke
+        config["pref_SYM"] = new_sym
+
+        # Save the updated configuration
+        with open("config.json", "w") as file:
+            json.dump(config, file)
+
+        self.settings_output_text.insert(tk.END, f"Key Exchange algorithm updated to: {new_ke}\n")
+        self.settings_output_text.insert(tk.END, f"Symmetric algorithm updated to: {new_sym}\n")
 
     def create_clear_output_buttons(self):
         frame = ttk.Frame(self)
